@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -46,6 +47,10 @@ public class RpcConnectManager {
     private ReentrantLock connectedLock = new ReentrantLock();
 
     private Condition connectedCondition = connectedLock.newCondition();
+
+    private volatile boolean isRunning = true;
+
+    private AtomicInteger handlerIdx = new AtomicInteger(0);
 
     public void connect(final String serverAddress) {
         List<String> allServerAddress = Arrays.asList(serverAddress.split(","));
@@ -162,6 +167,59 @@ public class RpcConnectManager {
     }
 
     /**
+     * 等待连接可用
+     * @return 是否连接可用
+     */
+    private boolean waitAvailableHandler() throws InterruptedException {
+        connectedLock.lock();
+
+        try {
+            long connectTimeoutMills = 6000;
+            return connectedCondition.await(connectTimeoutMills, TimeUnit.MILLISECONDS);
+        } finally {
+            connectedLock.unlock();
+        }
+    }
+
+    /**
+     * 选择一个RpcClientHandler
+     * @return
+     */
+    public RpcClientHandler chooseHandler() {
+        CopyOnWriteArrayList<RpcClientHandler> handlers = (CopyOnWriteArrayList<RpcClientHandler>) this.connectedHandlers.clone();
+        int size = handlers.size();
+        while (isRunning && size <= 0) {
+            try {
+                boolean available = waitAvailableHandler();
+                if (available) {
+                    handlers = (CopyOnWriteArrayList<RpcClientHandler>) this.connectedHandlers.clone();
+                    size = handlers.size();
+                }
+            } catch (InterruptedException e) {
+                log.error("waitAvailableHandler error", e);
+                throw new RuntimeException("no connection");
+            }
+        }
+        if (!isRunning) {
+            return null;
+        }
+        int index = handlerIdx.getAndAdd((1 + size) % size);
+
+        return handlers.get(index);
+    }
+
+    public void stop() {
+        isRunning = false;
+        for (int i = 0; i < connectedHandlers.size(); i++) {
+            RpcClientHandler rpcClientHandler = connectedHandlers.get(i);
+            rpcClientHandler.close();
+        }
+        signalAvailableHandler();
+        threadPoolExecutor.shutdown();
+        eventLoopGroup.shutdownGracefully();
+    }
+
+    /**
      * 负责清理所有活跃的连接
      * 主要目的是在需要断开所有连接时，如系统关闭或重新连接前的清理工作，确保资源得到适当释放并维护连接列表的准确性。
      */
@@ -175,8 +233,22 @@ public class RpcConnectManager {
                 connectedHandlerMap.remove(remotePeer);
             }
         }
-        connectedHandlers.clear();
 
+        connectedHandlers.clear();
+    }
+
+    /**
+     * 重新连接
+     * @param handler
+     * @param remotePeer
+     */
+    public void reconnect(final RpcClientHandler handler, final SocketAddress remotePeer) {
+        if (handler != null) {
+            handler.close();
+            connectedHandlers.remove(handler);
+            connectedHandlerMap.remove(remotePeer);
+        }
+        connectAsync((InetSocketAddress) remotePeer);
     }
 
 }
