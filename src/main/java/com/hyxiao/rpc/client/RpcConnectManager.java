@@ -61,7 +61,6 @@ public class RpcConnectManager {
      * 更新缓存信息，并异步发起连接
      * 对于连接进来的资源做一个缓存（做一个管理）
      *
-     * @param allServerAddress
      */
     private void updateConnectedServer(List<String> allServerAddress) {
 
@@ -210,8 +209,7 @@ public class RpcConnectManager {
 
     public void stop() {
         isRunning = false;
-        for (int i = 0; i < connectedHandlers.size(); i++) {
-            RpcClientHandler rpcClientHandler = connectedHandlers.get(i);
+        for (RpcClientHandler rpcClientHandler : connectedHandlers) {
             rpcClientHandler.close();
         }
         signalAvailableHandler();
