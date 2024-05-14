@@ -1,7 +1,10 @@
 package com.hyxiao.rpc.codec;
 
+import lombok.Data;
+
 import java.io.Serializable;
 
+@Data
 public class RpcRequest implements Serializable {
 
     private static final long serialVersionUID = 9000920774943105957L;
