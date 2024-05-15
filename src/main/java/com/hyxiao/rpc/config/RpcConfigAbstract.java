@@ -1,5 +1,7 @@
 package com.hyxiao.rpc.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -10,6 +12,8 @@ public abstract class RpcConfigAbstract {
 
     protected String id;
 
+    @Setter
+    @Getter
     protected String interfaceClass = null;
 
     //  服务的调用方
@@ -26,11 +30,4 @@ public abstract class RpcConfigAbstract {
         this.id = id;
     }
 
-    public String getInterfaceClass() {
-        return interfaceClass;
-    }
-
-    public void setInterfaceClass(String interfaceClass) {
-        this.interfaceClass = interfaceClass;
-    }
 }

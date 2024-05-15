@@ -21,8 +21,6 @@ public class RpcServerHandler extends SimpleChannelInboundHandler<RpcRequest> {
 
     private ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(16, 16, 600L, TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(65536));
 
-
-
     private Map<String, Object> handlerMap;
 
     public RpcServerHandler(Map<String, Object> handlerMap) {
