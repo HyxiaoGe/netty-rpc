@@ -10,4 +10,10 @@ public class ProviderConfig extends RpcConfigAbstract {
 
     protected Object ref;
 
+    protected String address;	// ip:port
+
+    protected String version = "1.0.0";
+
+    protected int weight = 1;	// 权重
+
 }
